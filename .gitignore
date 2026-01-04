@@ -1,0 +1,17 @@
+# Virtual Environment
+venv/
+/venv/
+
+# Database
+sahaja_yoga_db/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+# OS-specific
+.DS_Store
+Thumbs.db

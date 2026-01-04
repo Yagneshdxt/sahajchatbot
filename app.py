@@ -10,14 +10,42 @@ query = st.text_input("Enter your search (e.g., Heart Chakra, Pune, Kundalini):"
 embeddings = SentenceTransformerEmbeddings(model_name="all-MiniLM-L6-v2")
 db = Chroma(persist_directory="./sahaja_yoga_db", embedding_function=embeddings)
 
+
 if query:
-    # 3. Perform the search (k=5 means top 5 matches)
-    results = db.similarity_search(query, k=5)
+    # 3. Perform the search (k=100 for broader results)
+    # Check if query changed to avoid re-running search on pagination
+    if 'last_query' not in st.session_state or st.session_state.last_query != query:
+        st.session_state.last_query = query
+        st.session_state.search_results = db.similarity_search(query, k=100)
     
-    st.write(f"### Found {len(results)} relevant sections:")
+    results = st.session_state.search_results
+    total_results = len(results)
     
-    for i, doc in enumerate(results):
-        with st.expander(f"Match {i+1}: {doc.metadata.get('title', 'Unknown Title')}"):
-            st.info(f"📅 **Date:** {doc.metadata.get('date')} | 📍 **Location:** {doc.metadata.get('location')}")
-            st.write(doc.page_content)
-            st.caption(f"Source: {doc.metadata.get('source')}")
+    if total_results > 0:
+        # Pagination Controls
+        items_per_page = 5
+        total_pages = (total_results + items_per_page - 1) // items_per_page
+        
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            page = st.number_input("Page", min_value=1, max_value=total_pages, step=1, value=1)
+        
+        start_idx = (page - 1) * items_per_page
+        end_idx = start_idx + items_per_page
+        current_batch = results[start_idx:end_idx]
+        
+        # Calculate displayed range for the header
+        display_start = start_idx + 1
+        display_end = min(start_idx + items_per_page, total_results)
+        
+        st.write(f"### Found {total_results} relevant sections (Showing results {display_start}-{display_end} of {total_results}):")
+        
+        for i, doc in enumerate(current_batch):
+            # i is 0-indexed relative to batch, so add start_idx for global count
+            match_num = start_idx + i + 1
+            with st.expander(f"Match {match_num}: {doc.metadata.get('title', 'Unknown Title')}"):
+                st.info(f"📅 **Date:** {doc.metadata.get('date')} | 📍 **Location:** {doc.metadata.get('location')}")
+                st.write(doc.page_content)
+                st.caption(f"Source: {doc.metadata.get('source')}")
+    else:
+        st.write("### No relevant sections found.")
